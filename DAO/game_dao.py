@@ -1,5 +1,5 @@
 import numpy as np
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from model.air_missile_launcher import AirMissileLauncher
@@ -14,54 +14,10 @@ from model.surface_missile_launcher import SurfaceMissileLauncher
 from model.toredos_launcher import TorpedoLauncher
 from model.vessel import Vessel
 from model.weapon import Weapon
+
 engine = create_engine('sqlite:////tmp/tdlog.db', echo=True, future=True)
 Base = declarative_base(bind=engine)
 Session = sessionmaker(bind=engine)
-
-class GameDao:
- def _init_(self):
-  Base.metadata.create_all()
-  self.db_session = Session()
-
- def create_game(self, game: Game) -> int:
-  game_entity = map_to_game_entity(game)
-  self.db_session.add(game_entity)
-  self.db_session.commit()
-  return game_entity.id
-
- def find_game(self, game_id: int) -> Game:
-  stmt = select(GameEntity).where(GameEntity.id == game_id)
-  game_entity = self.db_session.scalars(stmt).one()
-  return map_to_game(game_entity)one()
-
- def create_or_update_player(self, game_id: int, player: Player) -> bool:
-  stmt = select(GameEntity).where(GameEntity.id == game_id)
-  game_entity = self.db_session.scolars(start).one()
-  for player_entity in game_entity.player:
-   if player_entity.name=player.name:
-    game_entity.player.remove(player_entity)
-    break
-  game_entity.player.append(map_to_player_entity(player))
-  self.db_session.flush()
-  self.db_session.comit()
-  return True
-
-
-def create_or_update_vessel(self, game_id: int, player: Player) -> bool:
- stmt_find_player = select(PlayerEntity).where(PlayerEntity.id == player_id)
- player_entity = self.db_session.scolars(start).one()
- vessel_entity_updated = map_to_vessel_entity(player.get_battlefield().id, vessel)
-
- for vessel_entity in player_entity.battle_field.vessels:
-  if vessel_entity.id= vessel_entity_updated.id:
-   player_entity.battle_field.vessel.remove(vessel_entity)
-   break
- player_entity.battle_field.vessel.append(vessel_entity_updated)
-
- self.db_session.flush()
- self.db_session.comit()
- return True
-
 
 class GameEntity(Base):
  __tablename__ = 'game'
@@ -130,26 +86,75 @@ class PlayerEntity(Base):
          SurfaceMISSILELAUnCHER = "SurfaceMissileLauncher"
          TORPEDOLAUnCHER = "TorpedoLauncher"
 
-  def map_to_game_entity(game: Game) -> GameEntity:
-   game_entity = GameEntity()
-   if game.get_id() is not None:
-    game_entity.id = game.get_id():
-    for player in game.get_player():
-     player_entity = PlayerEntity()
-     player_entity.id = player.id
-     player_entity.name = player.get_name()
-     Battlefield_entity = map_to_battlefield_entity(player.get_battlefield())
-     vessel_entity = \
-      map_to_vessel_entity(player.get_battlefield().id,
-                           player.get_battlefield().vessels)
-     battlefield_entity.vessels = vessel_entity
-     player_entity.battle_field = battlefield_entity
-     game_entity.players.append(player_entity)
+Base.metadata.create_all()
 
+class GameDao:
+    def __init__(self):
+        Base.metadata.create_all()
+        self.db_session = Session()
+    def map_to_game_entity(self,game:Game):
+        game_entity = GameEntity()
+        game_entity.id = game.id
+        game_entity.player = game.players
+        return game_entity
+    def map_to_game(self, game_entity:GameEntity):
+        id =game_entity.id
+        game = Game(id)
+        return game
 
+    def map_to_game_entity(self,game: Game) -> GameEntity:
+        game_entity = GameEntity(id=game.id)
+        game_entity.players = [self.map_to_player_entity(player) for player in game.players]
+        return game_entity
 
+    def map_to_player_entity(self, player: Player) -> PlayerEntity:
+        player_entity = PlayerEntity(id=player.id, name=player.name, game_id=player.game.id)
+        player_entity.battle_field = self.map_to_battlefield_entity(player.battle_field, player_entity.id)
+        return player_entity
 
+    def map_to_battlefield_entity(self, battlefield: Battlefield, player_id: int) -> BattlefieldEntity:
+        battlefield_entity = BattlefieldEntity(id=battlefield.id,
+                                               min_x=battlefield.min_x,
+                                               min_y=battlefield.min_y,
+                                               min_z=battlefield.min_z,
+                                               max_x=battlefield.max_x,
+                                               max_y=battlefield.max_y,
+                                               max_z=battlefield.max_z,
+                                               max_power=battlefield.max_power,
+                                               player_id=player_id)
+        battlefield_entity.vessels = [self.map_to_vessel_entity(vessel, battlefield_entity.id) for vessel in
+                                      battlefield.vessels]
+        return battlefield_entity
 
+    def map_to_vessel_entity(self, vessel: Vessel, battlefield_id: int) -> VesselEntity:
+        vessel_entity = VesselEntity(id=vessel.id,
+                                     coord_x=vessel.coord_x,
+                                     coord_y=vessel.coord_y,
+                                     coord_z=vessel.coord_z,
+                                     hots_to_be_destroyed=vessel.hots_to_be_destroyed,
+                                     type=vessel.type,
+                                     battle_field_id=battlefield_id)
+        vessel_entity.weapon = self.map_to_weapon_entity(vessel.weapon, vessel_entity.id)
+        return vessel_entity
+
+    def map_to_weapon_entity(self, weapon: Weapon, vessel_id: int) -> WeaponEntity:
+        weapon_entity = WeaponEntity(id=weapon.id,
+                                     ammunitions=weapon.ammunitions,
+                                     range=weapon.range,
+                                     type=weapon.type,
+                                     vessel_id=vessel_id)
+        return weapon_entity
+
+    def create_game(self, game: game) :
+        game_entity = self.map_to_game_entity(game)
+        self.db_session.add(game_entity)
+        self.db_session.commit()
+        return game_entity.id
+    def find_game(self, game_id: int):
+        stmt = select(GameEntity).where(GameEntity.id == game_id)
+        game_entity = self.db_session.scalars(stmt).one()
+        return self.map_to_game(game_entity)
+    
 
 
 
