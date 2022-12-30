@@ -20,19 +20,19 @@ Session = sessionmaker(bind=engine)
 
 class GameDao:
  def _init_(self):
- Base.metadata.create_all()
- self.db_session = Session()
+  Base.metadata.create_all()
+  self.db_session = Session()
 
  def create_game(self, game: Game) -> int:
- game_entity = map_to_game_entity(game)
- self.db_session.add(game_entity)
- self.db_session.commit()
- return game_entity.id
+  game_entity = map_to_game_entity(game)
+  self.db_session.add(game_entity)
+  self.db_session.commit()
+  return game_entity.id
 
  def find_game(self, game_id: int) -> Game:
- stmt = select(GameEntity).where(GameEntity.id == game_id)
- game_entity = self.db_session.scalars(stmt).one()
- return map_to_game(game_entity)one()
+  stmt = select(GameEntity).where(GameEntity.id == game_id)
+  game_entity = self.db_session.scalars(stmt).one()
+  return map_to_game(game_entity)one()
 
  def create_or_update_player(self, game_id: int, player: Player) -> bool:
   stmt = select(GameEntity).where(GameEntity.id == game_id)
@@ -81,7 +81,7 @@ class PlayerEntity(Base):
  uselist=False, cascade="all, delete-orphan")
 
  class BattlefieldEntity(Base):
- __tablename__ = 'battlefield'
+  __tablename__ = 'battlefield'
  id = Column(Integer, primary_key=True)
  min_x = Column(Integer)
  min_y = Column(Integer)
@@ -145,7 +145,7 @@ class PlayerEntity(Base):
      battlefield_entity.vessels = vessel_entity
      player_entity.battle_field = battlefield_entity
      game_entity.players.append(player_entity)
-    
+
 
 
 
