@@ -145,6 +145,7 @@ class PlayerEntity(Base):
      battlefield_entity.vessels = vessel_entity
      player_entity.battle_field = battlefield_entity
      game_entity.players.append(player_entity)
+    
 
 
 
